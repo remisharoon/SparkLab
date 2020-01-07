@@ -1,58 +1,175 @@
 package com.remis.spark
 
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.recommendation.ALS
+import java.nio.charset.CodingErrorAction
+
+import org.apache.log4j._
+import org.apache.spark._
+import org.apache.spark.rdd.RDD.rddToPairRDDFunctions
+
+import scala.io.{Codec, Source}
+import scala.math.sqrt
 
 object CollaborativeFiltering {
 
-  def main(args: Array[String]): Unit = {
+  // com.recommend.ColaborativeFiltering
+  type MovieRating = (Int, Double)
+  type UserRatingPair = (Int, (MovieRating, MovieRating))
 
-    case class Rating(userId: Int, movieId: Int, rating: Float, timestamp: Long)
-    def parseRating(str: String): Rating = {
-      val fields = str.split("::")
-      assert(fields.size == 4)
-      Rating(fields(0).toInt, fields(1).toInt, fields(2).toFloat, fields(3).toLong)
+  type RatingPair = (Double, Double)
+  type RatingPairs = Iterable[RatingPair]
+
+  type UsrRate = (Int, MovieRating)
+
+  type MappedMovieRating = ((Int, Int), RatingPair)
+
+  def mapMovieNames():Map[Int,String] = {
+
+    implicit val codec = Codec("UTF-8")
+    codec.onMalformedInput(CodingErrorAction.REPLACE)
+    codec.onUnmappableCharacter(CodingErrorAction.REPLACE)
+
+    var movName:Map[Int, String] = Map()
+
+    val lines = Source.fromFile("C:\\lab\\SparkLab\\files\\ml-25m\\movies.csv").getLines()
+
+    for(line <- lines) {
+      val li = line.split(",")
+      if(li.length > 0) {
+        try{
+          movName += (li(0).toInt -> li(1))
+        }catch{
+          case e:Exception => println(e.toString)
+        }
+
+
+      }
     }
 
-    val ratings = spark.read.textFile("data/mllib/als/sample_movielens_ratings.txt")
-      .map(parseRating)
-      .toDF()
-    val Array(training, test) = ratings.randomSplit(Array(0.8, 0.2))
-
-    // Build the recommendation model using ALS on the training data
-    val als = new ALS()
-      .setMaxIter(5)
-      .setRegParam(0.01)
-      .setUserCol("userId")
-      .setItemCol("movieId")
-      .setRatingCol("rating")
-    val model = als.fit(training)
-
-    // Evaluate the model by computing the RMSE on the test data
-    // Note we set cold start strategy to 'drop' to ensure we don't get NaN evaluation metrics
-    model.setColdStartStrategy("drop")
-    val predictions = model.transform(test)
-
-    val evaluator = new RegressionEvaluator()
-      .setMetricName("rmse")
-      .setLabelCol("rating")
-      .setPredictionCol("prediction")
-    val rmse = evaluator.evaluate(predictions)
-    println(s"Root-mean-square error = $rmse")
-
-    // Generate top 10 movie recommendations for each user
-    val userRecs = model.recommendForAllUsers(10)
-    // Generate top 10 user recommendations for each movie
-    val movieRecs = model.recommendForAllItems(10)
-
-    // Generate top 10 movie recommendations for a specified set of users
-    val users = ratings.select(als.getUserCol).distinct().limit(3)
-    val userSubsetRecs = model.recommendForUserSubset(users, 10)
-    // Generate top 10 user recommendations for a specified set of movies
-    val movies = ratings.select(als.getItemCol).distinct().limit(3)
-    val movieSubSetRecs = model.recommendForItemSubset(movies, 10)
-
+    return movName
   }
 
+  def userBasedMaping(lines:String):UsrRate = {
+    val line = lines.split(",")
+    val usr = line(0).toInt
+    val mov = line(1).toInt
+    val rat = line(2).toDouble
+    return (usr, (mov, rat))
+  }
 
+  def filterDuplicate(userRatings:UserRatingPair):Boolean = {
+    val movieR1 = userRatings._2._1
+    val movieR2 = userRatings._2._2
+
+    val mov1 = movieR1._1
+    val mov2 = movieR2._2
+
+    return mov1 != mov2
+  }
+
+  def mappPair(userRatings:UserRatingPair):MappedMovieRating = {
+    val movieR1 = userRatings._2._1
+    val movieR2 = userRatings._2._2
+
+    val mov1 = movieR1._1
+    val rate1 = movieR1._2
+    val mov2 = movieR2._1
+    val rate2 = movieR2._2
+
+    return ((mov1, mov2), (rate1, rate2))
+  }
+
+  def computeCosineSimilarity(ratingPairs:RatingPairs): (Double, Int) = {
+    var numPairs:Int = 0
+    var sum_xx:Double = 0.0
+    var sum_yy:Double = 0.0
+    var sum_xy:Double = 0.0
+
+    for (pair <- ratingPairs) {
+      val ratingX = pair._1
+      val ratingY = pair._2
+
+      sum_xx += ratingX * ratingX
+      sum_yy += ratingY * ratingY
+      sum_xy += ratingX * ratingY
+      numPairs += 1
+    }
+
+    val numerator:Double = sum_xy
+    val denominator = sqrt(sum_xx) * sqrt(sum_yy)
+
+    var score:Double = 0.0
+    if (denominator != 0) {
+      score = numerator / denominator
+    }
+
+    return (score, numPairs)
+  }
+
+  def main(args: Array[String]): Unit = {
+
+    Logger.getLogger("org").setLevel(Level.ERROR)
+
+    // Create a SparkContext using every core of the local machine
+    val sc = new SparkContext("local[*]", "MovieSimilarities")
+
+    println("\nLoading movie names...")
+    val nameDict = mapMovieNames()
+
+    val data = sc.textFile("C:\\lab\\SparkLab\\files\\ml-25m\\ratings.csv")
+
+    //read and map movie data based on (userId, (movId, rating))
+    val usrRating = data.filter(l => !l.split(",")(0).equalsIgnoreCase("userId")).map(userBasedMaping)
+
+    //emit every movie rated by same user
+    val joinedRate = usrRating.join(usrRating)
+
+    //filter out duplicates from above join
+    val uniqueRate = joinedRate.filter(filterDuplicate)
+
+    // now map data into movie pairs to find similarity (mov1, mov2) => (rate1, rate2)
+    val mapPairs = uniqueRate.map(mappPair)
+
+    // grouped by movie pair ratings (mov1, mov2) => [(rate1, rate2), (rate1, rate2), ...
+    val groupByMoviePair = mapPairs.groupByKey()
+
+    //Calculate similarity based on rating vector
+    val moviePairSimilarity = groupByMoviePair.mapValues(computeCosineSimilarity).cache()
+
+    //Sort similarities if req
+    //val sortedmovies = moviePairSimilarity.sortByKey()
+
+    if (args.length > 0) {
+      val scoreThreshold = 0.97
+      val coOccurenceThreshold = 50.0
+
+      val movieID:Int = args(0).toInt
+
+      // Filter for movies with this sim that are "good" as defined by
+      // our quality thresholds above
+
+      val filteredResults = moviePairSimilarity.filter( x =>
+      {
+        val pair = x._1
+        val sim = x._2
+        (pair._1 == movieID || pair._2 == movieID) && sim._1 > scoreThreshold && sim._2 > coOccurenceThreshold
+      }
+      )
+
+      // Sort by quality score.
+      val results = filteredResults.map( x => (x._2, x._1)).sortByKey(false).take(10)
+
+      println("\nTop 10 similar movies for " + nameDict(movieID))
+      for (result <- results) {
+        val sim = result._1
+        val pair = result._2
+        // Display the similarity result that isn't the movie we're looking at
+        var similarMovieID = pair._1
+        if (similarMovieID == movieID) {
+          similarMovieID = pair._2
+        }
+        println(nameDict(similarMovieID) + "\tscore: " + sim._1 + "\tstrength: " + sim._2)
+      }
+    }
+
+  }
 }
