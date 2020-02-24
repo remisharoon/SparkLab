@@ -3,7 +3,7 @@ import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.RandomForestClassifier
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
-import org.apache.spark.ml.tuning.CrossValidatorModel
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField, StructType}
 
@@ -184,28 +184,28 @@ object RandomForestSeedTest {
     val cvModelLoaded = CrossValidatorModel
       .load("models/credit-model")
 
-    // sample data, it could comes via kafka(through spark streams)
-    val df1 = Seq(
-      (1, 18, 2, 6, 750, 1, 1, 4, 2, 1, 1, 1, 27, 3, 2, 1, 1, 1, 1, 1),
-      (2, 24, 2, 1, 12579, 1, 5, 4, 2, 1, 2, 4, 44, 3, 3, 1, 4, 1, 2, 1),
-      (1, 18, 2, 1, 7511, 5, 5, 1, 3, 1, 4, 2, 51, 3, 3, 1, 3, 2, 2, 1),
-      (1, 18, 4, 0, 3966, 1, 5, 1, 2, 1, 4, 1, 33, 1, 1, 3, 3, 1, 2, 1),
-      (1, 12, 0, 3, 6199, 1, 3, 4, 3, 1, 2, 2, 28, 3, 1, 2, 3, 1, 2, 1),
-      (1, 24, 2, 3, 1987, 1, 3, 2, 3, 1, 4, 1, 21, 3, 1, 1, 2, 2, 1, 1),
-      (1, 24, 2, 0, 2303, 1, 5, 4, 3, 2, 1, 1, 45, 3, 2, 1, 3, 1, 1, 1),
-      (4, 21, 4, 0, 12680, 5, 5, 4, 3, 1, 4, 4, 30, 3, 3, 1, 4, 1, 2, 1),
-      (2, 12, 2, 3, 6468, 5, 1, 2, 3, 1, 1, 4, 52, 3, 2, 1, 4, 1, 2, 1),
-      (1, 30, 2, 2, 6350, 5, 5, 4, 3, 1, 4, 2, 31, 3, 2, 1, 3, 1, 1, 1)
-    ).toDF("balance", "duration", "history", "purpose", "amount", "savings", "employment", "instPercent", "sexMarried",
-      "guarantors", "residenceDuration", "assets", "age", "concCredit", "apartment", "credits", "occupation", "dependents", "hasPhone",
-      "foreign")
-    df1.show()
+//    // sample data, it could comes via kafka(through spark streams)
+//    val df1 = Seq(
+//      (1, 18, 2, 6, 750, 1, 1, 4, 2, 1, 1, 1, 27, 3, 2, 1, 1, 1, 1, 1),
+//      (2, 24, 2, 1, 12579, 1, 5, 4, 2, 1, 2, 4, 44, 3, 3, 1, 4, 1, 2, 1),
+//      (1, 18, 2, 1, 7511, 5, 5, 1, 3, 1, 4, 2, 51, 3, 3, 1, 3, 2, 2, 1),
+//      (1, 18, 4, 0, 3966, 1, 5, 1, 2, 1, 4, 1, 33, 1, 1, 3, 3, 1, 2, 1),
+//      (1, 12, 0, 3, 6199, 1, 3, 4, 3, 1, 2, 2, 28, 3, 1, 2, 3, 1, 2, 1),
+//      (1, 24, 2, 3, 1987, 1, 3, 2, 3, 1, 4, 1, 21, 3, 1, 1, 2, 2, 1, 1),
+//      (1, 24, 2, 0, 2303, 1, 5, 4, 3, 2, 1, 1, 45, 3, 2, 1, 3, 1, 1, 1),
+//      (4, 21, 4, 0, 12680, 5, 5, 4, 3, 1, 4, 4, 30, 3, 3, 1, 4, 1, 2, 1),
+//      (2, 12, 2, 3, 6468, 5, 1, 2, 3, 1, 1, 4, 52, 3, 2, 1, 4, 1, 2, 1),
+//      (1, 30, 2, 2, 6350, 5, 5, 4, 3, 1, 4, 2, 31, 3, 2, 1, 3, 1, 1, 1)
+//    ).toDF("balance", "duration", "history", "purpose", "amount", "savings", "employment", "instPercent", "sexMarried",
+//      "guarantors", "residenceDuration", "assets", "age", "concCredit", "apartment", "credits", "occupation", "dependents", "hasPhone",
+//      "foreign")
+//    df1.show()
 
     // prediction of credit risk of sample data set
     // we don't need to add feature column to data frame since model comes with pipeline
     // pipeline already have VectorAssembler
-    val df2 = cvModelLoaded.transform(df1)
-    df2.show()
+//    val df2 = cvModelLoaded.transform(df1)
+//    df2.show()
 
 
 
