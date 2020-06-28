@@ -1,4 +1,5 @@
 package com.remis.spark.pivot
+import com.remis.spark.context.SparkContext
 import org.apache.spark.sql.SparkSession
 
 object PivotTest extends App{
