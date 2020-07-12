@@ -24,5 +24,6 @@ object ExamResults extends App  with SparkContext{
     */
   val highestScores = students.groupBy("subject").max("score")
   highestScores.show(10)
+  highestScores.explain()
   Thread.sleep(Integer.MAX_VALUE)
 }
