@@ -1,4 +1,4 @@
-package com.remis.spark.scalatest.json
+package com.remis.scalacore.json
 
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule

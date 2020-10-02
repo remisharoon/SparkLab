@@ -1,4 +1,4 @@
-package com.remis.spark.scalatest.implicits
+package com.remis.scalacore.implicits
 
 object ImplicitsIntro extends App{
     val pairs = "Remis" -> 33

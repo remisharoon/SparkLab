@@ -1,4 +1,4 @@
-package com.remis.spark.scalatest.typeclass
+package com.remis.scalacore.typeclass
 
 object TypeClass1 extends App{
 

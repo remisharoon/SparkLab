@@ -1,4 +1,4 @@
-package com.remis.spark.scalatest.concurrency
+package com.remis.scalacore.concurrency
 import scala.util.Random
 
 object ObjectMultiThreadingTest {

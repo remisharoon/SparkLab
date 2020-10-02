@@ -1,4 +1,4 @@
-package com.remis.spark.scalatest.typesystem
+package com.remis.scalacore.typesystem
 
 object AdvancedInheritance extends App{
 
